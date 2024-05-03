@@ -1,0 +1,18 @@
+Display creation...
+Window OpenGL SDF created successfully.
+Successfully initialized GLEW.
+Remap data for CUDA.
+Allocation and copying to CUDA memory.
+numVoxels: 32768
+eps: 1e-07
+numPolygons: 3936
+sdfDepth: 0.1
+CUDA calculation.
+Voxel mesh construction...
+Initializing shaders and texture...
+Mesh changed.
+Mesh changed.
+Mesh changed.
+Mesh changed.
+Mesh changed.
+Window destructed successfully.

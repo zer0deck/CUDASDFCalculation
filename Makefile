@@ -259,7 +259,7 @@ ifeq ($(dbg),1)
       NVCCFLAGS += -g -G
       BUILD_TYPE := debug
 else ifeq ($(t),1)
-      BUILD_TYPE := targets
+      BUILD_TYPE := test
 else
       BUILD_TYPE := release
 endif
@@ -330,9 +330,10 @@ IDIR := ./src/
 BINDIR := ./bin/
 DATADIR := ./data/
 DEBUGDIR := ./.debug/
-INCLUDES  := -I $(IDIR) -I ./lib/
-LIBRARIES := 
-FLAGS := -lcurl 
+LIBDIR := ./lib/
+INCLUDES  := -I $(IDIR) -I $(LIBDIR) -I $(LIBDIR)OpenGLBase/
+LIBRARIES := -lSDL2 -lGLEW -lGL
+FLAGS := -lcurl -diag-suppress 20012 -diag-suppress 68
 ifeq ($(dbg),1)
 	FLAGS += -DDEBUG_MODE
 else ifeq ($(t),1)
@@ -351,6 +352,15 @@ COMBINED_CUSTOM_INFO := $(INCLUDES) $(FLAGS) $(LIBRARIES)
 # Target rules
 all: build run
 
+# Preparation
+before: $(LIBDIR)OpenGLBase/stb_image.c $(LIBDIR)OpenGLBase/stb_image.h 
+ifeq ($(log),1)
+	@echo "$(L_FLAG) Building stm_image..."
+	@echo "$(NVCC) $(COMBINED_CUSTOM_INFO) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $(BINDIR)stb_image.o -c $<"
+endif
+
+	@ $(NVCC) $(COMBINED_CUSTOM_INFO) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $(BINDIR)stb_image.o -c $<
+
 # Assembling
 assembling: $(IDIR)$(EXECNAME).cu $(IDIR)$(EXECNAME).h
 ifeq ($(log),1)
@@ -367,7 +377,7 @@ endif
 	@sha256sum $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o > $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).checksum
 
 # Linking
-linking: $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o
+linking: $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o $(BINDIR)stb_image.o
 ifeq ($(log),1)
 	@echo "$(L_FLAG) Precompiled file for the current architecture validation..."
 endif
@@ -376,10 +386,10 @@ endif
 
 ifeq ($(log),1)
 	@echo "$(L_FLAG) Building executable..."
-	@echo "$(NVCC) $(COMBINED_CUSTOM_INFO) $(ALL_LDFLAGS) $(GENCODE_FLAGS) $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o -o $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe"
+	@echo "$(NVCC) $(COMBINED_CUSTOM_INFO) $(ALL_LDFLAGS) $(GENCODE_FLAGS) $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o $(BINDIR)stb_image.o -o $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe"
 endif
 
-	@$(NVCC) $(COMBINED_CUSTOM_INFO) $(ALL_LDFLAGS) $(GENCODE_FLAGS) $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o -o $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe
+	@$(NVCC) $(COMBINED_CUSTOM_INFO) $(ALL_LDFLAGS) $(GENCODE_FLAGS) $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o $(BINDIR)stb_image.o -o $(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe
 	@rm -f $(BINDIR)$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).o
 
 ifeq ($(log),1)
@@ -395,9 +405,9 @@ endif
 
 # Build
 ifeq ($(dbg),1)
-build: clean_all assembling linking
+build: clean_all before assembling linking
 else 
-build: clean assembling linking
+build: clean before assembling linking
 endif
 
 
@@ -408,7 +418,7 @@ ifeq ($(log),1)
 endif
 ifeq ($(dbg),1)
 	@mkdir -p $(DEBUGDIR)
-	@$(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe  > $(DEBUGDIR)debug.log
+	@$(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe $(ARGS) > $(DEBUGDIR)debug.log
 else ifeq ($(t),1)
 	@$(BINDIR)$(EXECNAME)_$(TARGET_ARCH)_$(TARGET_OS)_$(BUILD_TYPE).exe
 else
@@ -430,5 +440,3 @@ clean:
 
 clean_all: clean
 	@rm -rf $(DEBUGDIR)
-	@rm -f $(DATADIR)*.tiff
-	@rm -f $(DATADIR)output/*.bin
